@@ -357,36 +357,6 @@
       font-size: .9rem;
     }
 
-    .debug-panel {
-      margin-top: 8px;
-      border: 1px dashed var(--line);
-      border-radius: 12px;
-      padding: 8px 10px;
-      background: color-mix(in srgb, var(--surface) 84%, #0a1a30);
-    }
-
-    .debug-panel > summary {
-      list-style: none;
-      cursor: pointer;
-      font-weight: 700;
-      color: var(--info);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .debug-panel > summary::-webkit-details-marker { display: none; }
-
-    #debugInfo {
-      margin: 8px 0 0;
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: .78rem;
-      color: #d0e6ff;
-    }
-
     .action-row {
       display: flex;
       flex-wrap: wrap;
@@ -725,14 +695,9 @@
       </details>
       <div class="meta-row">
         <div id="metaData">Menunggu data...</div>
-        <details class="debug-panel" id="debugPanel">
-          <summary>Debug (teknikal)</summary>
-          <pre id="debugInfo">-</pre>
-        </details>
         <div class="action-row">
           <button id="btnPdf" class="btn-ghost" type="button">Muat Turun PDF</button>
           <button id="btnPrint" class="btn-ghost" type="button">Cetak</button>
-          <button id="btnDebug" class="btn-ghost" type="button">Debug</button>
         </div>
       </div>
     </section>
@@ -954,14 +919,11 @@
       filterKelas: document.getElementById('filterKelas'),
       btnRefresh: document.getElementById('btnRefresh'),
       metaData: document.getElementById('metaData'),
-      debugInfo: document.getElementById('debugInfo'),
-      debugPanel: document.getElementById('debugPanel'),
       rowCount: document.getElementById('rowCount'),
       tableBody: document.getElementById('tableBody'),
       toastWrap: document.getElementById('toastWrap'),
       btnPdf: document.getElementById('btnPdf'),
       btnPrint: document.getElementById('btnPrint'),
-      btnDebug: document.getElementById('btnDebug'),
       individuCard: document.getElementById('individuCard'),
       individuSubtitle: document.getElementById('individuSubtitle'),
       individuJumlah: document.getElementById('individuJumlah'),
@@ -1790,10 +1752,6 @@
           status: 'Gagal ambil data',
           error: err.message || 'Tidak diketahui'
         });
-        if (el.debugPanel) {
-          el.debugPanel.open = true;
-          el.debugPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
         setNetworkUI(navigator.onLine);
         const c = bacaCache();
         if (c) {
@@ -1852,12 +1810,6 @@
       });
       el.btnPdf.addEventListener('click', muatTurunPdf);
       el.btnPrint.addEventListener('click', () => window.print());
-      el.btnDebug.addEventListener('click', () => {
-        el.debugPanel.open = !el.debugPanel.open;
-        if (el.debugPanel.open) {
-          el.debugPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      });
 
       initSorting();
       ambilData();
