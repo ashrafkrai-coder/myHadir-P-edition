@@ -732,6 +732,7 @@
         <div class="action-row">
           <button id="btnPdf" class="btn-ghost" type="button">Muat Turun PDF</button>
           <button id="btnPrint" class="btn-ghost" type="button">Cetak</button>
+          <button id="btnDebug" class="btn-ghost" type="button">Debug</button>
         </div>
       </div>
     </section>
@@ -960,6 +961,7 @@
       toastWrap: document.getElementById('toastWrap'),
       btnPdf: document.getElementById('btnPdf'),
       btnPrint: document.getElementById('btnPrint'),
+      btnDebug: document.getElementById('btnDebug'),
       individuCard: document.getElementById('individuCard'),
       individuSubtitle: document.getElementById('individuSubtitle'),
       individuJumlah: document.getElementById('individuJumlah'),
@@ -1788,6 +1790,10 @@
           status: 'Gagal ambil data',
           error: err.message || 'Tidak diketahui'
         });
+        if (el.debugPanel) {
+          el.debugPanel.open = true;
+          el.debugPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
         setNetworkUI(navigator.onLine);
         const c = bacaCache();
         if (c) {
@@ -1846,6 +1852,12 @@
       });
       el.btnPdf.addEventListener('click', muatTurunPdf);
       el.btnPrint.addEventListener('click', () => window.print());
+      el.btnDebug.addEventListener('click', () => {
+        el.debugPanel.open = !el.debugPanel.open;
+        if (el.debugPanel.open) {
+          el.debugPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
 
       initSorting();
       ambilData();
