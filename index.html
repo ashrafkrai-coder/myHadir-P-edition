@@ -357,6 +357,36 @@
       font-size: .9rem;
     }
 
+    .debug-panel {
+      margin-top: 8px;
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 8px 10px;
+      background: color-mix(in srgb, var(--surface) 84%, #0a1a30);
+    }
+
+    .debug-panel > summary {
+      list-style: none;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--info);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .debug-panel > summary::-webkit-details-marker { display: none; }
+
+    #debugInfo {
+      margin: 8px 0 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: .78rem;
+      color: #d0e6ff;
+    }
+
     .action-row {
       display: flex;
       flex-wrap: wrap;
@@ -695,6 +725,10 @@
       </details>
       <div class="meta-row">
         <div id="metaData">Menunggu data...</div>
+        <details class="debug-panel" id="debugPanel">
+          <summary>Debug (teknikal)</summary>
+          <pre id="debugInfo">-</pre>
+        </details>
         <div class="action-row">
           <button id="btnPdf" class="btn-ghost" type="button">Muat Turun PDF</button>
           <button id="btnPrint" class="btn-ghost" type="button">Cetak</button>
@@ -918,6 +952,8 @@
       filterKelas: document.getElementById('filterKelas'),
       btnRefresh: document.getElementById('btnRefresh'),
       metaData: document.getElementById('metaData'),
+      debugInfo: document.getElementById('debugInfo'),
+      debugPanel: document.getElementById('debugPanel'),
       rowCount: document.getElementById('rowCount'),
       tableBody: document.getElementById('tableBody'),
       toastWrap: document.getElementById('toastWrap'),
@@ -941,6 +977,11 @@
     function formatTarikhApi(isoDate) {
       const m = String(isoDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
       return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+    }
+
+    function formatTarikhApiAlt(isoDate) {
+      const m = String(isoDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      return m ? `${m[1]}-${m[2]}-${m[3]}` : '';
     }
 
     function formatMasaKini() {
@@ -985,7 +1026,14 @@
       }, 2200);
     }
 
-    function setDebugInfo() {}
+    function setDebugInfo(info = {}) {
+      if (!el.debugInfo) return;
+      try {
+        el.debugInfo.textContent = JSON.stringify(info, null, 2);
+      } catch (_) {
+        el.debugInfo.textContent = String(info || '-');
+      }
+    }
 
     function bacaMedan(item, candidates = []) {
       for (const key of candidates) {
@@ -1587,37 +1635,65 @@
     async function ambilData() {
       const tarikhIso = el.filterTarikh.value || hariIniIso();
       const tarikhApi = formatTarikhApi(tarikhIso);
+      const tarikhAlt = formatTarikhApiAlt(tarikhIso);
       const sep = SCRIPT_URL.includes('?') ? '&' : '?';
-      const url = `${SCRIPT_URL}${sep}tarikh=${encodeURIComponent(tarikhApi)}`;
+      const tarikhList = Array.from(new Set([tarikhApi, tarikhAlt].filter(Boolean)));
 
       setDebugInfo({
         tarikhIso,
-        tarikhApi,
-        url,
+        tarikhDicuba: tarikhList,
         status: 'Memanggil Apps Script...'
       });
 
       try {
-        const res = await fetch(url, { cache: 'no-cache', redirect: 'follow' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const payload = await bacaPayloadApi(res);
-        if (payload && payload.success === false) {
-          throw new Error(payload.message || 'Apps Script memulangkan ralat.');
+        let lastPayload = null;
+        let lastRes = null;
+        let lastUrl = '';
+
+        for (const tarikh of tarikhList) {
+          const url = `${SCRIPT_URL}${sep}tarikh=${encodeURIComponent(tarikh)}`;
+          lastUrl = url;
+          setDebugInfo({
+            tarikhIso,
+            tarikhApi,
+            tarikhAlt,
+            tarikhSemasa: tarikh,
+            url,
+            status: 'Memanggil Apps Script...'
+          });
+
+          const res = await fetch(url, { cache: 'no-cache', redirect: 'follow' });
+          lastRes = res;
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+          const payload = await bacaPayloadApi(res);
+          if (payload && payload.success === false) {
+            throw new Error(payload.message || 'Apps Script memulangkan ralat.');
+          }
+
+          lastPayload = payload;
+          dataPenuh = dapatkanRowsApi(payload);
+          if (Array.isArray(dataPenuh) && dataPenuh.length > 0) {
+            break;
+          }
         }
-        dataPenuh = dapatkanRowsApi(payload);
+
         kemaskiniMasterMurid(dataPenuh);
 
         setDebugInfo({
           tarikhIso,
           tarikhApi,
-          url,
+          tarikhAlt,
+          tarikhDicuba: tarikhList,
+          url: lastUrl,
           status: 'Berjaya ambil data',
-          http: res.status,
+          http: lastRes?.status || '-',
           rows: Array.isArray(dataPenuh) ? dataPenuh.length : 0,
+          payloadType: Array.isArray(lastPayload) ? 'array' : typeof lastPayload,
           error: Array.isArray(dataPenuh) && dataPenuh.length === 0 ? 'Tiada rekod dipulangkan oleh Apps Script untuk tarikh ini.' : '-'
         });
 
-        if (!Array.isArray(payload) && !Array.isArray(payload?.data)) {
+        if (!Array.isArray(lastPayload) && !Array.isArray(lastPayload?.data)) {
           toast('Format API tidak serasi dengan paparan murid.', 'warn');
         }
 
@@ -1630,7 +1706,8 @@
         setDebugInfo({
           tarikhIso,
           tarikhApi,
-          url,
+          tarikhAlt,
+          tarikhDicuba: tarikhList,
           status: 'Gagal ambil data',
           error: err.message || 'Tidak diketahui'
         });
