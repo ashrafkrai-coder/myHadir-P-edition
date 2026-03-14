@@ -806,6 +806,7 @@
 
   <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyOp8UyiDufk_Z9YgtDfOYH-VNk12Zz4W146t0OoHULMVudwaINeFlXTou6vROmTWQF/exec";
+    const API_TOKEN = "myhadir-token-2026";
     const CACHE_KEY = 'myhadir_cache_v2';
     const MASTER_MURID_KEY = 'myhadir_master_murid_v1';
     const KELAS_TETAP = ['5 A', '5 B', '5 C', '5 D', '5 G', '5 H', '5 I', '5 J', '5 PVMA'];
@@ -1062,15 +1063,23 @@
         'Status Kehadiran',
         'status kehadiran',
         'Kehadiran Murid',
-        'kehadiran murid'
+        'kehadiran murid',
+        'Hadir',
+        'hadir',
+        'Imbasan',
+        'imbasan',
+        'Status Imbasan',
+        'status imbasan',
+        'Attendance',
+        'attendance'
       ]);
     }
 
     function normalStatus(val) {
       const s = String(val || '').trim().toLowerCase();
       if (!s) return 'Hadir';
-      if (s === 'h' || s === 'hadir' || s === 'present' || s === '1' || s === 'true' || s === 'ya') return 'Hadir';
-      if (s === 'th' || s === 'tidak hadir' || s === 'absen' || s === 'ponteng' || s === 'x hadir' || s === '0' || s === 'false') return 'Tidak Hadir';
+      if (s === 'h' || s === 'hadir' || s === 'present' || s === '1' || s === 'true' || s === 'ya' || s === 'y' || s === 'yes' || s === '✓') return 'Hadir';
+      if (s === 'th' || s === 'tidak hadir' || s === 'absen' || s === 'ponteng' || s === 'x hadir' || s === '0' || s === 'false' || s === 'n' || s === 'no' || s === '✗') return 'Tidak Hadir';
       if (/(^|[^a-z])hadir([^a-z]|$)/.test(s) || s.includes('present')) return 'Hadir';
       if (s.includes('tidak hadir') || s.includes('x hadir') || s.includes('absen') || s.includes('ponteng')) return 'Tidak Hadir';
       return 'Hadir';
@@ -1106,28 +1115,95 @@
     }
 
     function bacaKelas(item) {
-      return normalKelasLabel(bacaMedan(item, ['Kelas', 'kelas', 'Nama_Kelas', 'Nama Kelas'])) || 'Tiada Kelas';
+      return normalKelasLabel(bacaMedan(item, [
+        'Kelas',
+        'kelas',
+        'Nama_Kelas',
+        'Nama Kelas',
+        'Kelas Murid',
+        'kelas murid',
+        'Kelas Tambahan',
+        'kelas tambahan',
+        'Kelas_Tambahan',
+        'Class',
+        'class'
+      ])) || 'Tiada Kelas';
     }
 
     function bacaNama(item) {
-      return bacaMedan(item, ['Nama', 'nama', 'Nama Murid']);
+      return bacaMedan(item, [
+        'Nama',
+        'nama',
+        'Nama Murid',
+        'Nama Pelajar',
+        'nama pelajar',
+        'Nama_Pelajar',
+        'Pelajar',
+        'pelajar',
+        'Murid',
+        'murid',
+        'Name',
+        'name',
+        'Student',
+        'student'
+      ]);
     }
 
     function bacaTarikh(item) {
-      const raw = bacaMedan(item, ['Tarikh', 'tarikh', 'Tarikh Kehadiran', 'tarikh kehadiran']);
+      const raw = bacaMedan(item, [
+        'Tarikh',
+        'tarikh',
+        'Tarikh Kehadiran',
+        'tarikh kehadiran',
+        'Tarikh_Imbasan',
+        'Tarikh Imbasan',
+        'tarikh imbasan',
+        'Tarikh Hadir',
+        'tarikh hadir',
+        'Date',
+        'date'
+      ]);
       if (!raw) return '';
       return normalTarikh(raw);
     }
 
     function normalTarikh(raw) {
+      if (raw === null || raw === undefined) return '';
+      if (raw instanceof Date) {
+        return `${pad2(raw.getDate())}/${pad2(raw.getMonth() + 1)}/${raw.getFullYear()}`;
+      }
+
+      if (typeof raw === 'number' && Number.isFinite(raw)) {
+        if (raw > 1000000000000) {
+          const d = new Date(raw);
+          if (!Number.isNaN(d.getTime())) return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+        } else if (raw > 1000000000) {
+          const d = new Date(raw * 1000);
+          if (!Number.isNaN(d.getTime())) return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+        } else if (raw > 20000 && raw < 80000) {
+          const base = new Date(Date.UTC(1899, 11, 30));
+          const d = new Date(base.getTime() + raw * 86400000);
+          if (!Number.isNaN(d.getTime())) return `${pad2(d.getUTCDate())}/${pad2(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+        }
+      }
+
       const text = String(raw || '').trim();
       if (!text) return '';
 
-      const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-      if (iso) return `${pad2(iso[3])}/${pad2(iso[2])}/${iso[1]}`;
+      let m = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/);
+      if (m) return `${pad2(m[3])}/${pad2(m[2])}/${m[1]}`;
 
-      const dmy = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (dmy) return `${pad2(dmy[1])}/${pad2(dmy[2])}/${dmy[3]}`;
+      m = text.match(/^(\d{4})[\/.](\d{1,2})[\/.](\d{1,2})$/);
+      if (m) return `${pad2(m[3])}/${pad2(m[2])}/${m[1]}`;
+
+      m = text.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+      if (m) return `${pad2(m[1])}/${pad2(m[2])}/${m[3]}`;
+
+      const parsed = Date.parse(text);
+      if (!Number.isNaN(parsed)) {
+        const d = new Date(parsed);
+        return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+      }
 
       return text;
     }
@@ -1637,6 +1713,7 @@
       const tarikhApi = formatTarikhApi(tarikhIso);
       const tarikhAlt = formatTarikhApiAlt(tarikhIso);
       const sep = SCRIPT_URL.includes('?') ? '&' : '?';
+      const tokenParam = API_TOKEN ? `${sep}token=${encodeURIComponent(API_TOKEN)}` : '';
       const tarikhList = Array.from(new Set([tarikhApi, tarikhAlt].filter(Boolean)));
 
       setDebugInfo({
@@ -1651,7 +1728,7 @@
         let lastUrl = '';
 
         for (const tarikh of tarikhList) {
-          const url = `${SCRIPT_URL}${sep}tarikh=${encodeURIComponent(tarikh)}`;
+          const url = `${SCRIPT_URL}${tokenParam}${tokenParam ? '&' : sep}tarikh=${encodeURIComponent(tarikh)}`;
           lastUrl = url;
           setDebugInfo({
             tarikhIso,
